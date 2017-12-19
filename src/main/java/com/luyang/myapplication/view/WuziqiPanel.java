@@ -7,12 +7,16 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.media.midi.MidiDeviceInfo;
+import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 import com.luyang.myapplication.R;
+import com.luyang.myapplication.util.WinnerCheck;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +49,10 @@ public class WuziqiPanel extends View {
     private boolean isWhiteFirst = true;
     private List<Point> whiteArray = new ArrayList<>();
     private List<Point> blackArray = new ArrayList<>();
+
+    //输赢逻辑判断
+    private boolean isGameOver;
+    private boolean isWhiteWinner;
 
 
     public WuziqiPanel(Context context, @Nullable AttributeSet attrs) {
@@ -95,6 +103,31 @@ public class WuziqiPanel extends View {
         drawBoard(canvas);
         //点击屏幕画棋子
         drawPecies(canvas);
+        //检查游戏是否结束
+        checkGameOver();
+    }
+
+    private void checkGameOver() {
+        boolean whiteWin = checkFiveInLine(whiteArray);
+        boolean blackWin = checkFiveInLine(blackArray);
+        if (whiteWin || blackWin) {
+            isGameOver = true;
+            isWhiteWinner = whiteWin;
+            String text = isWhiteWinner ? "白棋获胜" : "黑棋获胜";
+            Toast.makeText(getContext(), text, Toast.LENGTH_SHORT).show();
+
+        }
+    }
+
+    /**
+     * 检查是否五子连珠
+     *
+     * @param peiceArray
+     * @return
+     */
+    private boolean checkFiveInLine(List<Point> peiceArray) {
+        return WinnerCheck.check(peiceArray);
+
     }
 
     private void drawPecies(final Canvas canvas) {
@@ -138,6 +171,9 @@ public class WuziqiPanel extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (isGameOver) {
+            return false;
+        }
         int x = (int) event.getX();
         int y = (int) event.getY();
         if (event.getAction() == MotionEvent.ACTION_UP) {
@@ -166,4 +202,37 @@ public class WuziqiPanel extends View {
         Point p = new Point(newx, newy);
         return p;
     }
+
+
+    //VIEW的存储与回复
+    private final static String INSTANCE = "instance";
+    private final static String INSTANCE_GAME_OVER = "instance_gameover";
+    private final static String INSTANCE_BLACKARRAY = "black";
+    private final static String INSTANCE_WHITEARRAY = "white";
+
+    @Nullable
+    @Override
+    protected Parcelable onSaveInstanceState() {
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(INSTANCE, super.onSaveInstanceState());
+        bundle.putBoolean(INSTANCE_GAME_OVER, isGameOver);
+        bundle.putParcelableArrayList(INSTANCE_BLACKARRAY, (ArrayList<? extends Parcelable>) blackArray);
+        bundle.putParcelableArrayList(INSTANCE_WHITEARRAY, (ArrayList<? extends Parcelable>) whiteArray);
+
+        return bundle;
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Parcelable state) {
+        if (state instanceof Bundle) {
+            Bundle bundle = (Bundle) state;
+            isGameOver = bundle.getBoolean(INSTANCE_GAME_OVER);
+            blackArray = bundle.getParcelableArrayList(INSTANCE_BLACKARRAY);
+            whiteArray = bundle.getParcelableArrayList(INSTANCE_WHITEARRAY);
+            super.onRestoreInstanceState(bundle.getParcelable(INSTANCE));
+            return;
+        }
+        super.onRestoreInstanceState(state);
+    }
+
 }
